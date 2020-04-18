@@ -106,7 +106,7 @@ Below are some properties of the Release Plugin Convention that can be used to m
 	<tr>
 		<td>updateSnapshotDependencies</td>
 		<td>[]</td>
-		<td>List of dependencies using the syntax '$group:$name' that will be updated to their release versions if they are on a SNAPSHOT version. This provides functionality similar to what the Maven Release Plugin provides.  The versions must be maintained in the versions.properties file with the format '$group:$name.version=XXXX', and the properties should be dynamically read from this file and injected in the project's build.gradle.</td>
+		<td>List of dependencies using the syntax '$group:$name' that will be updated to their release versions if they are on a SNAPSHOT version. This provides functionality similar to what the Maven Release Plugin provides.  The versions must be maintained in the $versionPropertyFile (alongside the projects 'version' property) with the format '$group:$name.version=XXXX', and the dependency version values should be dynamically read from this file and injected in the project's build.gradle dependency section.</td>
 	</tr>
 	<tr>
 		<td>pushReleaseVersionBranch</td>
