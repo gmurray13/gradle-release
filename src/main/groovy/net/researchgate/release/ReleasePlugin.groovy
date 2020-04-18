@@ -51,6 +51,7 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
                 "${p}unSnapshotVersion" as String,
                 "${p}confirmReleaseVersion" as String,
                 "${p}checkSnapshotDependencies" as String,
+                "${p}unSnapshotDependencies" as String,
                 "${p}runBuildTasks" as String,
                 "${p}preTagCommit" as String,
                 "${p}createReleaseTag" as String,
@@ -81,6 +82,8 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
             description: 'Prompts user for this release version. Allows for alpha or pre releases.') doLast this.&confirmReleaseVersion
         project.task('checkSnapshotDependencies', group: RELEASE_GROUP,
             description: 'Checks to see if your project has any SNAPSHOT dependencies.') doLast this.&checkSnapshotDependencies
+        project.task('unSnapshotDependencies', group: RELEASE_GROUP,
+            description: 'Updates SNAPSHOT dependencies to release versions of those dependencies.') doLast this.&unSnapshotDependencies
 
         project.task('runBuildTasks', group: RELEASE_GROUP,
             description: 'Runs the build process in a separate gradle run.', type: GradleBuild) {
@@ -120,6 +123,7 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
             project.tasks.unSnapshotVersion.mustRunAfter(project.tasks.checkoutMergeToReleaseBranch)
             project.tasks.confirmReleaseVersion.mustRunAfter(project.tasks.unSnapshotVersion)
             project.tasks.checkSnapshotDependencies.mustRunAfter(project.tasks.confirmReleaseVersion)
+            project.tasks.unSnapshotDependencies.mustRunAfter(project.tasks.confirmReleaseVersion)
             project.tasks.runBuildTasks.mustRunAfter(project.tasks.checkSnapshotDependencies)
             project.tasks.preTagCommit.mustRunAfter(project.tasks.runBuildTasks)
             project.tasks.createReleaseTag.mustRunAfter(project.tasks.preTagCommit)
@@ -195,7 +199,11 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
     }
 
     void checkSnapshotDependencies() {
-        def matcher = { Dependency d -> d.version?.contains('SNAPSHOT') && !extension.ignoredSnapshotDependencies.contains("${d.group ?: ''}:${d.name}".toString()) }
+        def matcher = { Dependency d ->
+            d.version?.contains('SNAPSHOT') &&
+                !extension.ignoredSnapshotDependencies.contains("${d.group ?: ''}:${d.name}".toString()) &&
+                !extension.updateSnapshotDependencies.contains("${d.group ?: ''}:${d.name}".toString())
+        }
         def collector = { Dependency d -> "${d.group ?: ''}:${d.name}:${d.version ?: ''}" }
 
         def message = ""
@@ -213,10 +221,44 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
             }
         }
 
-        if (message) {
+        if (message && (extension.failOnSnapshotDependencies || extension.updateSnapshotDependencies.isEmpty())) {
             message = "Snapshot dependencies detected: ${message}"
             warnOrThrow(extension.failOnSnapshotDependencies, message)
         }
+    }
+
+    void unSnapshotDependencies() {
+        if (extension.updateSnapshotDependencies.isEmpty()) {
+            return
+        }
+
+        def matcher = { Dependency d -> d.version?.contains('-SNAPSHOT') && extension.updateSnapshotDependencies.contains("${d.group ?: ''}:${d.name}".toString()) }
+
+        def updatedArtifacts = []
+
+        project.allprojects.each { project ->
+
+            project.configurations.each { cfg ->
+                def snapshotDependenciesToUpdate = cfg.dependencies?.matching(matcher)
+
+                snapshotDependenciesToUpdate.each { d ->
+
+                    cfg.dependencies.remove(d)
+
+                    def newDependency = new ExternalModuleDependencyWithModifiedVersion(d, d.version.substring(0, d.version.length() - "-SNAPSHOT".length()))
+                    cfg.dependencies.add(newDependency)
+
+                    updateExternalDependencyVersionProperty(newDependency.group, newDependency.name, newDependency.version)
+                    updatedArtifacts += "${newDependency.group}:${newDependency.name}"
+                }
+
+            }
+        }
+
+        if (updatedArtifacts) {
+            log.debug "Snapshot dependencies updated: ${updatedArtifacts}"
+        }
+
     }
 
     void commitTag() {
@@ -246,7 +288,7 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
     }
 
     void preTagCommit() {
-        if (attributes.usesSnapshot || attributes.versionModified || attributes.propertiesFileCreated) {
+        if (attributes.usesSnapshot || attributes.versionModified || attributes.snapshotDependenciesUpdated || attributes.propertiesFileCreated) {
             // should only be committed if the project was using a snapshot version.
             def message = extension.preTagCommitMessage + " '${tagName()}'."
 

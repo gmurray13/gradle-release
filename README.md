@@ -86,7 +86,7 @@ Below are some properties of the Release Plugin Convention that can be used to m
 	<tr>
 		<td>failOnSnapshotDependencies</td>
 		<td>true</td>
-		<td>Fail when the project has dependencies on SNAPSHOT versions unless those SNAPSHOT dependencies have been defined as <i>'ignoredSnapshotDependencies'</i> using the syntax '$group:$name'</td>
+		<td>Fail when the project has dependencies on SNAPSHOT versions unless those SNAPSHOT dependencies have been defined as <i>'ignoredSnapshotDependencies'</i> using the syntax '$group:$name'.  If 'updateSnapshotDependencies' has values (with the syntax '$group:$name') and those SNAPSHOTS should be updated to release versions, then 'failOnSnapshotDependencies' must be 'false'.</td>
 	</tr>
 	<tr>
 		<td>failOnUnversionedFiles</td>
@@ -193,7 +193,7 @@ release {
 }
 ```
 
-This are all possible configuration options and its default values:
+These are all possible configuration options and their default values:
 
 ```
 release {
@@ -213,6 +213,7 @@ release {
     snapshotSuffix = '-SNAPSHOT'
     buildTasks = ['build']
     ignoredSnapshotDependencies = []
+    updateSnapshotDependencies = []
     versionPatterns = [
         /(\d+)([^\d]*$)/: { Matcher m, Project p -> m.replaceAll("${(m[0][1] as int) + 1}${m[0][2]}") }
     ]

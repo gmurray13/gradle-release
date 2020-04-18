@@ -28,14 +28,22 @@ public class PluginHelperVersionPropertyFileTests extends Specification {
         project.apply plugin: ReleasePlugin
         project.release.scmAdapters = [TestAdapter]
 
+        final def originalDependencyGroupId = 'myGroupId'
+        final def originalDependencyArtifactId = 'myArtifactId'
+        final def originalDependencyVersion = '1.3.1-SNAPSHOT'
+        project.configurations { implementation }
+        project.dependencies { implementation "${originalDependencyGroupId}:${originalDependencyArtifactId}:${originalDependencyVersion}" }
+
+
         helper = new PluginHelper(project: project, extension: project.extensions['release'] as ReleaseExtension)
 
         def props = project.file("gradle.properties")
-        props.withWriter {it << "version=${project.version}"}
+        props.withWriter {it << "version=${project.version}\n${originalDependencyGroupId}.${originalDependencyArtifactId}.version=${originalDependencyVersion}\n"}
+        //props.withWriter {it << "${originalDependencyGroupId}.${originalDependencyArtifactId}.version=${originalDependencyVersion}"}
     }
 
     def cleanup() {
-        if (testDir.exists()) testDir.deleteDir()
+        //if (testDir.exists()) testDir.deleteDir()
     }
 
     def 'should find gradle.properties by default'() {
@@ -160,4 +168,13 @@ public class PluginHelperVersionPropertyFileTests extends Specification {
         lines[1] == 'version1=3.3'
         lines[2] == 'version2 3.3'
     }
+
+    def 'update SNAPSHOT dependencies to release versions in props file'() {
+        given:
+        helper.updateExternalDependencyVersionProperty("myGroupId", "myArtifactId", "2.2.1")
+        expect:
+        project.file("gradle.properties").readLines()[1] == 'myGroupId.myArtifactId.version=2.2.1'
+    }
+
+
 }

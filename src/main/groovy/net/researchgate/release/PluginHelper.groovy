@@ -105,6 +105,22 @@ class PluginHelper {
         }
     }
 
+    protected void updateDependencySnapshotVersion(File file, String key, version) {
+        try {
+            if (!file.file) {
+                project.ant.echo(file: file, message: "$key=$version")
+            } else {
+                // we use replace here as other ant tasks escape and modify the whole file
+                project.ant.replaceregexp(file: file, byline: true) {
+                    regexp(pattern: "^(\\s*)$key((\\s*[=|:]\\s*)|(\\s+)).+\$")
+                    substitution(expression: "\\1$key\\2$version")
+                }
+            }
+        } catch (BuildException be) {
+            throw new GradleException('Unable to update version of SNAPSHOT dependency.', be)
+        }
+    }
+
     boolean isVersionDefined() {
         project.version && Project.DEFAULT_VERSION != project.version
     }
@@ -173,6 +189,14 @@ class PluginHelper {
             List<String> versionProperties = extension.versionProperties + 'version'
             versionProperties.each { writeVersion(findPropertiesFile(), it, project.version) }
         }
+    }
+
+    /**
+     *
+     */
+    void updateExternalDependencyVersionProperty(String groupId, String artifactId, String newVersion) {
+        attributes.snapshotDependenciesUpdated = true
+        updateDependencySnapshotVersion(findPropertiesFile(), "${groupId}.${artifactId}.version", newVersion)
     }
 
     /**
