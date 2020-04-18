@@ -104,6 +104,11 @@ Below are some properties of the Release Plugin Convention that can be used to m
 		<td>When a failure occurs should the plugin revert it's changes to gradle.properties?</td>
 	</tr>
 	<tr>
+		<td>updateSnapshotDependencies</td>
+		<td>[]</td>
+		<td>List of dependencies using the syntax '$group:$name' that will be updated to their release versions if they are on a SNAPSHOT version. This provides functionality similar to what the Maven Release Plugin provides.  The versions must be maintained in the versions.properties file with the format '$group:$name.version=XXXX', and the properties should be dynamically read from this file and injected in the project's build.gradle.</td>
+	</tr>
+	<tr>
 		<td>pushReleaseVersionBranch</td>
 		<td>false</td>
 		<td>(GIT only) If set to the name of a branch, the `release` task will commit the release on this branch, and the next version on the working branch.</td>
